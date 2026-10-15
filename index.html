@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Makes the page scale correctly on phones. Required for responsive design. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Gallery</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- defer = load the script after the HTML is parsed, so elements exist when JS runs -->
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+
+  <!-- ===== HEADER + TABS ===== -->
+  <header class="site-header">
+    <h1 class="logo">Gallery</h1>
+    <nav class="tabs">
+      <button class="tab active" data-view="photos">Photos</button>
+      <button class="tab" data-view="albums">Albums</button>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ===== PHOTOS VIEW ===== -->
+    <section id="photos-view" class="view">
+
+      <!-- One section per month -->
+      <section class="month-group">
+        <h2 class="month-title">October 2026</h2>
+
+        <!-- One block per day inside the month -->
+        <div class="day-group">
+          <h3 class="day-title">October 12</h3>
+          <div class="photo-grid">
+            <figure class="photo">
+              <img src="https://picsum.photos/seed/desert1/900/700" alt="Dune sunrise" />
+              <figcaption>Dune sunrise</figcaption>
+            </figure>
+            <figure class="photo">
+              <img src="https://picsum.photos/seed/desert2/900/700" alt="Rock formations" />
+              <figcaption>Rock formations</figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="day-group">
+          <h3 class="day-title">October 1</h3>
+          <div class="photo-grid">
+            <figure class="photo">
+              <img src="https://picsum.photos/seed/friends1/900/700" alt="With friends" />
+              <figcaption>With friends</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+    </section>
+
+    <!-- ===== ALBUMS VIEW ===== -->
+    <section id="albums-view" class="view" hidden>
+      <div class="album-grid">
+
+        <!-- The "create album" card -->
+        <button class="album-card album-add" id="add-album">
+          <span class="plus">+</span>
+          <span>New album</span>
+        </button>
+
+        <article class="album-card">
+          <img src="https://picsum.photos/seed/desert1/600/600" alt="" />
+          <h3>Desert Trip</h3>
+          <p>3 photos</p>
+        </article>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== LIGHTBOX (hidden until a photo is clicked) ===== -->
+  <div class="lightbox" id="lightbox" hidden>
+    <button class="lb-close" aria-label="Close">&times;</button>
+    <button class="lb-prev" aria-label="Previous photo">&#8249;</button>
+    <img class="lb-image" src="" alt="" />
+    <button class="lb-next" aria-label="Next photo">&#8250;</button>
+    <p class="lb-caption"></p>
+  </div>
+
+</body>
+</html>
