@@ -216,3 +216,89 @@ img { display: block; max-width: 100%; }
 .lb-close { top: 20px; right: 20px; }
 .lb-prev  { left: 20px;  top: 50%; transform: translateY(-50%); }
 .lb-next  { right: 20px; top: 50%; transform: translateY(-50%); }
+
+
+/* ===== DETAIL VIEW (opened month / album) ===== */
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 0 8px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--soft);
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.back:hover { background: #e6e6e6; }
+
+.detail-title { font-size: clamp(2rem, 6vw, 3.5rem); letter-spacing: -0.03em; line-height: 1.05; }
+.detail-sub { color: var(--muted); margin: 6px 0 12px; }
+.empty-text { color: var(--muted); padding: 40px 0; }
+
+/* Cover placeholder for an empty album */
+.empty-cover { width: 100%; aspect-ratio: 1; border-radius: var(--radius); background: var(--soft); }
+
+/* ===== CREATE ALBUM MODAL ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  animation: fade 0.2s ease;   /* reuses the keyframes from the lightbox */
+}
+.modal-box {
+  width: min(520px, 100%);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border-radius: 20px;
+  background: #fff;
+}
+.modal-box h3 { font-size: 1.3rem; }
+.modal-box input {
+  padding: 12px 14px;
+  border: 1.5px solid #d6d6d6;
+  border-radius: 10px;
+  font: inherit;
+}
+.modal-box input:focus { outline: none; border-color: var(--text); }
+.modal-hint { color: var(--muted); font-size: 0.85rem; }
+
+.picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 6px;
+  overflow-y: auto;            /* picker scrolls if there are many photos */
+}
+.pick {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  outline: 3px solid transparent;
+  outline-offset: -3px;
+  transition: outline-color 0.15s, transform 0.15s;
+}
+.pick img { width: 100%; height: 100%; object-fit: cover; }
+.pick.selected { outline-color: #1a73e8; transform: scale(0.94); }
+
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.modal-actions button {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--soft);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.modal-actions .primary { background: var(--text); color: #fff; }
+.modal-actions button:hover { filter: brightness(0.93); }
