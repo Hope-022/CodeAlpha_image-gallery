@@ -3,17 +3,17 @@
 const img = (id) => `https://picsum.photos/id/${id}/900/700`;
 
 const allPhotos = [
-  { id: "p1",  src: img(1015), title: "Dune sunrise",    takenAt: "2026-10-12T06:40:00", category: "Nature" },
-  { id: "p2",  src: img(1018), title: "Rock formations", takenAt: "2026-10-12T08:15:00", category: "Nature" },
-  { id: "p3",  src: img(1080), title: "Camp dinner",     takenAt: "2026-10-12T19:20:00", category: "Food" },
-  { id: "p4",  src: img(1016), title: "Road trip",       takenAt: "2026-10-05T14:00:00", category: "Travel" },
+  { id: "p1",  src: img(1015), title: "Soo Blueish",    takenAt: "2026-10-12T06:40:00", category: "Nature" },
+  { id: "p2",  src: img(1018), title: "Beautiful view", takenAt: "2026-10-12T08:15:00", category: "Nature" },
+  { id: "p3",  src: img(1080), title: "my favorite fruit",     takenAt: "2026-10-12T19:20:00", category: "Food" },
+  { id: "p4",  src: img(1016), title: "Mountain hike",       takenAt: "2026-10-05T14:00:00", category: "Travel" },
   { id: "p5",  src: img(1011), title: "With friends",    takenAt: "2026-10-01T17:45:00", category: "People" },
-  { id: "p6",  src: img(1005), title: "Group photo",     takenAt: "2026-10-01T18:05:00", category: "People" },
+  { id: "p6",  src: img(1005), title: "A friend",     takenAt: "2026-10-01T18:05:00", category: "People" },
   { id: "p7",  src: img(1039), title: "Beach morning",   takenAt: "2026-08-22T09:10:00", category: "Travel" },
-  { id: "p8",  src: img(1060), title: "Seafood lunch",   takenAt: "2026-08-22T13:30:00", category: "Food" },
-  { id: "p9",  src: img(1043), title: "Forest walk",     takenAt: "2026-08-03T11:00:00", category: "Nature" },
-  { id: "p10", src: img(1044), title: "City lights",     takenAt: "2026-01-15T20:30:00", category: "Travel" },
-  { id: "p11", src: img(1050), title: "Street market",   takenAt: "2026-01-15T16:00:00", category: "Food" },
+  { id: "p8",  src: img(1060), title: "Coffee",   takenAt: "2026-08-22T13:30:00", category: "Food" },
+  { id: "p9",  src: img(1043), title: "Fountain of Water",     takenAt: "2026-08-03T11:00:00", category: "Nature" },
+  { id: "p10", src: img(1044), title: "Views views!!",     takenAt: "2026-01-15T20:30:00", category: "Travel" },
+  { id: "p11", src: img(1050), title: "Nature",   takenAt: "2026-01-15T16:00:00", category: "Food" },
   { id: "p12", src: img(1036), title: "First snow",      takenAt: "2026-01-04T08:00:00", category: "Nature" },
 ];
 
@@ -336,14 +336,83 @@ function closeLightbox() {
 }
 
 /* --- navigation --- */
-lightbox.querySelector(".lb-next").addEventListener("click", () => { if (!draft) showPhoto(currentIndex + 1); });
-lightbox.querySelector(".lb-prev").addEventListener("click", () => { if (!draft) showPhoto(currentIndex - 1); });
 $("lb-close").addEventListener("click", closeLightbox);
+
+/* --- SWIPE TO CHANGE PHOTO --- */
+const stage = lightbox.querySelector(".lb-stage");
+const SWIPE_DISTANCE = 60;   // how many px you must drag to count as a swipe
+let startX = 0;
+let dragX = 0;
+let dragging = false;
+let suppressClick = false;   // stops a swipe from also counting as a "click to close"
+let busy = false;            // blocks new swipes while an animation is running
+
+// step = +1 (next) or -1 (previous)
+function goTo(step) {
+  if (busy || visiblePhotos.length < 2) {
+    lbImage.style.transform = "";   // only one photo: just snap back
+    return;
+  }
+  busy = true;
+  lbImage.classList.remove("dragging");
+  lbImage.style.transform = `translateX(${-step * window.innerWidth}px)`;  // fly off screen
+  lbImage.style.opacity = "0";
+
+  setTimeout(() => {
+    showPhoto(currentIndex + step);          // swap in the new photo
+    lbImage.classList.add("dragging");       // turn off transitions for the reset
+    lbImage.style.transform = "";
+    lbImage.style.opacity = "";
+    lbImage.classList.add(step > 0 ? "enter-right" : "enter-left");  // slide in
+    busy = false;
+  }, 180);
+}
+
+// Clean up when the slide-in animation ends
+lbImage.addEventListener("animationend", () => {
+  lbImage.classList.remove("enter-right", "enter-left", "dragging");
+});
+
+// Stop the browser's built-in "drag the image" ghost (it breaks mouse swiping)
+lbImage.addEventListener("dragstart", (event) => event.preventDefault());
+
+stage.addEventListener("pointerdown", (event) => {
+  if (draft || busy) return;           // no swiping while editing
+  dragging = true;
+  dragX = 0;
+  startX = event.clientX;
+  lbImage.classList.add("dragging");   // the photo follows your finger with no delay
+});
+
+window.addEventListener("pointermove", (event) => {
+  if (!dragging) return;
+  dragX = event.clientX - startX;
+  lbImage.style.transform = `translateX(${dragX}px)`;
+});
+
+window.addEventListener("pointerup", () => {
+  if (!dragging) return;
+  dragging = false;
+  suppressClick = Math.abs(dragX) > 5;
+  setTimeout(() => (suppressClick = false), 0);
+
+  lbImage.classList.remove("dragging");
+  if (dragX <= -SWIPE_DISTANCE) goTo(1);         // swiped left  → next photo
+  else if (dragX >= SWIPE_DISTANCE) goTo(-1);    // swiped right → previous photo
+  else lbImage.style.transform = "";             // too short → snap back
+});
+
+// The browser can cancel a touch (e.g. it decides it's a scroll). Just snap back.
+window.addEventListener("pointercancel", () => {
+  dragging = false;
+  lbImage.classList.remove("dragging");
+  lbImage.style.transform = "";
+});
 
 // Clicking the empty dark area closes it
 lightbox.addEventListener("click", (event) => {
   const emptySpace = event.target === lightbox || event.target.classList.contains("lb-stage");
-  if (emptySpace && !draft) closeLightbox();
+  if (emptySpace && !draft && !suppressClick) closeLightbox();
 });
 
 /* --- date button: jump back to the photo's place in the gallery --- */
@@ -654,8 +723,8 @@ document.addEventListener("keydown", (event) => {
     return closeModal();
   }
   if (lightbox.hidden || draft || !sheet.hidden) return;
-  if (event.key === "ArrowRight") showPhoto(currentIndex + 1);
-  if (event.key === "ArrowLeft") showPhoto(currentIndex - 1);
+  if (event.key === "ArrowRight") goTo(1);
+  if (event.key === "ArrowLeft") goTo(-1);
 });
 
 /* ============ 11. START ============ */
