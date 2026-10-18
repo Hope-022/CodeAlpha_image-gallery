@@ -14,6 +14,7 @@ A responsive image gallery inspired by Google Photos, built with plain HTML, CSS
 - **Category filters** (Nature, Travel, Food, People)
 - **Image filters** in the lightbox (B&W, Sepia, Warm, Cool, Vivid)
 - **Hover effects and smooth transitions**
+- **Favourites, share sheet, non-destructive photo editing, and a bin with undo**
 - **Fully responsive** from phones to large desktops
 
 ## Tech

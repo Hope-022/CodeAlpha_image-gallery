@@ -2,7 +2,7 @@
 
 const img = (id) => `https://picsum.photos/id/${id}/900/700`;
 
-const photos = [
+const allPhotos = [
   { id: "p1",  src: img(1015), title: "Dune sunrise",    takenAt: "2026-10-12T06:40:00", category: "Nature" },
   { id: "p2",  src: img(1018), title: "Rock formations", takenAt: "2026-10-12T08:15:00", category: "Nature" },
   { id: "p3",  src: img(1080), title: "Camp dinner",     takenAt: "2026-10-12T19:20:00", category: "Food" },
@@ -40,6 +40,32 @@ function saveAlbums() {
   }
 }
 
+// Small helpers to save things in the browser
+function loadJSON(key, fallback) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+function saveJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage blocked: the app still works, it just won't remember */
+  }
+}
+
+const favorites = new Set(loadJSON("favorites", []));   // ids of starred photos
+const trashed   = new Set(loadJSON("trashed", []));     // ids of photos in the bin
+const edits     = loadJSON("edits", {});                // { photoId: { filter, brightness... } }
+
+// Every screen keeps using `photos`, so the bin works everywhere automatically.
+let photos = allPhotos.filter((p) => !trashed.has(p.id));
+function refreshPhotos() {
+  photos = allPhotos.filter((p) => !trashed.has(p.id));
+}
+
 /* ============ 2. STATE ============ */
 let albums = loadAlbums();
 let visiblePhotos = [];   // photos currently on screen, in screen order (lightbox uses this)
@@ -61,6 +87,27 @@ const monthFormat   = new Intl.DateTimeFormat("en-US", { month: "long", year: "n
 const dayFormat     = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric" });
 const dayYearFormat = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" });
 const fullFormat    = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeStyle: "short" });
+
+const timeFormat = new Intl.DateTimeFormat("en-US", { weekday: "short", hour: "numeric", minute: "2-digit" });
+
+// Image presets (empty string = no filter)
+const imagePresets = {
+  Original: "",
+  "B&W": "grayscale(1)",
+  Sepia: "sepia(0.85)",
+  Warm: "sepia(0.35) saturate(1.4) hue-rotate(-10deg)",
+  Cool: "saturate(1.2) hue-rotate(15deg) brightness(1.05)",
+  Vivid: "saturate(1.8) contrast(1.1)",
+};
+
+const defaultEdit = () => ({ filter: "Original", brightness: 100, contrast: 100, saturate: 100 });
+
+// Combine the preset and the sliders into ONE css filter string
+function buildFilter(edit) {
+  return `${imagePresets[edit.filter]} brightness(${edit.brightness}%) contrast(${edit.contrast}%) saturate(${edit.saturate}%)`;
+}
+const filterFor = (id) => (edits[id] ? buildFilter(edits[id]) : "none");
+
 
 function sortNewestFirst(list) {
   return [...list].sort((a, b) => new Date(b.takenAt) - new Date(a.takenAt));
@@ -97,7 +144,7 @@ function photosOfAlbum(album) {
 /* ============ 4. HTML TEMPLATES ============ */
 const photoTile = (p) => `
   <figure class="photo" data-id="${p.id}">
-    <img src="${p.src}" alt="${escapeHTML(p.title)}" loading="lazy" />
+    <img src="${p.src}" alt="${escapeHTML(p.title)}" loading="lazy" style="filter:${filterFor(p.id)}" />
     <figcaption>${escapeHTML(p.title)}</figcaption>
   </figure>`;
 
@@ -116,15 +163,13 @@ function cardHTML({ attr, cover, title, count }) {
 
 /* ============ 5. RENDER THE SCREENS ============ */
 let activeCategory = "All";
-
-// Set removes duplicates; "..." spreads it back into an array
-const categories = ["All", ...new Set(photos.map((p) => p.category))];
+const categories = ["All", "Favorites", ...new Set(allPhotos.map((p) => p.category))];
 
 function getGalleryPhotos() {
   const sorted = sortNewestFirst(photos);
-  return activeCategory === "All"
-    ? sorted
-    : sorted.filter((p) => p.category === activeCategory);
+  if (activeCategory === "All") return sorted;
+  if (activeCategory === "Favorites") return sorted.filter((p) => favorites.has(p.id));
+  return sorted.filter((p) => p.category === activeCategory);
 }
 
 function renderChips() {
@@ -137,8 +182,10 @@ function renderChips() {
 }
 
 function renderGallery() {
-  visiblePhotos = getGalleryPhotos(); // lightbox next/prev now follows the filter too
-  $("gallery-grid").innerHTML = visiblePhotos.map(photoTile).join("");
+  visiblePhotos = getGalleryPhotos();
+  $("gallery-grid").innerHTML = visiblePhotos.length
+    ? visiblePhotos.map(photoTile).join("")
+    : `<p class="empty-text">Nothing here yet.</p>`;
   renderChips();
 }
 
@@ -252,47 +299,26 @@ document.querySelector("main").addEventListener("click", (event) => {
 /* ============ 8. LIGHTBOX ============ */
 const lightbox = $("lightbox");
 const lbImage = lightbox.querySelector(".lb-image");
+const editPanel = $("lb-edit");
+const sheet = $("sheet");
 let currentIndex = 0;
+let draft = null;   // the edit in progress (null = not editing)
 
-// Each filter is just a CSS filter string
-const imageFilters = {
-  Original: "none",
-  "B&W": "grayscale(1)",
-  Sepia: "sepia(0.85)",
-  Warm: "sepia(0.35) saturate(1.4) hue-rotate(-10deg)",
-  Cool: "saturate(1.2) hue-rotate(15deg) brightness(1.05)",
-  Vivid: "saturate(1.8) contrast(1.1)",
-};
-
-const filterBar = $("lb-filters");
-filterBar.innerHTML = Object.keys(imageFilters)
-  .map((name) => `<button class="lb-filter" data-filter="${name}">${name}</button>`)
-  .join("");
-
-function applyImageFilter(name) {
-  lbImage.style.filter = imageFilters[name];
-  filterBar.querySelectorAll(".lb-filter").forEach((btn) =>
-    btn.classList.toggle("active", btn.dataset.filter === name)
-  );
-}
-
-filterBar.addEventListener("click", (event) => {
-  const btn = event.target.closest(".lb-filter");
-  if (btn) applyImageFilter(btn.dataset.filter);
-});
-
+const currentPhoto = () => visiblePhotos[currentIndex];
 
 function showPhoto(index) {
   currentIndex = (index + visiblePhotos.length) % visiblePhotos.length; // wraps around
-  const photo = visiblePhotos[currentIndex];
+  const photo = currentPhoto();
+  const date = new Date(photo.takenAt);
+
   lbImage.src = photo.src;
   lbImage.alt = photo.title;
+  lbImage.style.filter = filterFor(photo.id);
   $("lb-title").textContent = photo.title;
-  $("lb-date").textContent = `${fullFormat.format(new Date(photo.takenAt))} · ${photo.category}`;
-  $("lb-date").textContent = `${fullFormat.format(new Date(photo.takenAt))} · ${photo.category}`;
-  applyImageFilter("Original");   // ← add this
+  $("lb-date").textContent = dayYearFormat.format(date);
+  $("lb-time").textContent = timeFormat.format(date);
+  updateFavButton();
 }
-
 
 function openLightbox(index) {
   showPhoto(index);
@@ -303,13 +329,275 @@ function openLightbox(index) {
 function closeLightbox() {
   lightbox.hidden = true;
   document.body.style.overflow = "";
+  closeSheet();
+  if (draft) closeEdit();
+  // If we're viewing the Favorites chip and un-starred something, refresh the grid
+  if (activeCategory === "Favorites" && !$("gallery-view").hidden) renderGallery();
 }
 
-lightbox.querySelector(".lb-next").addEventListener("click", () => showPhoto(currentIndex + 1));
-lightbox.querySelector(".lb-prev").addEventListener("click", () => showPhoto(currentIndex - 1));
-lightbox.querySelector(".lb-close").addEventListener("click", closeLightbox);
+/* --- navigation --- */
+lightbox.querySelector(".lb-next").addEventListener("click", () => { if (!draft) showPhoto(currentIndex + 1); });
+lightbox.querySelector(".lb-prev").addEventListener("click", () => { if (!draft) showPhoto(currentIndex - 1); });
+$("lb-close").addEventListener("click", closeLightbox);
+
+// Clicking the empty dark area closes it
 lightbox.addEventListener("click", (event) => {
-  if (event.target === lightbox) closeLightbox();
+  const emptySpace = event.target === lightbox || event.target.classList.contains("lb-stage");
+  if (emptySpace && !draft) closeLightbox();
+});
+
+/* --- date button: jump back to the photo's place in the gallery --- */
+$("lb-when").addEventListener("click", () => {
+  const id = currentPhoto().id;
+  closeLightbox();
+  // Only look inside the screen that is currently visible
+  const tile = document.querySelector(`.view:not([hidden]) .photo[data-id="${id}"]`);
+  if (!tile) return;
+  tile.scrollIntoView({ behavior: "smooth", block: "center" });
+  tile.classList.add("flash");
+  setTimeout(() => tile.classList.remove("flash"), 1500);
+});
+
+/* --- favourite star --- */
+function updateFavButton() {
+  const isFav = favorites.has(currentPhoto().id);
+  const btn = $("lb-fav");
+  btn.innerHTML = isFav ? "&#9733;" : "&#9734;";   // filled star / empty star
+  btn.classList.toggle("on", isFav);
+}
+
+$("lb-fav").addEventListener("click", () => {
+  const id = currentPhoto().id;
+  favorites.has(id) ? favorites.delete(id) : favorites.add(id);
+  saveJSON("favorites", [...favorites]);
+  updateFavButton();
+});
+
+/* --- bottom sheet (shared by Share / Add to album / Details) --- */
+function openSheet(title, html) {
+  $("sheet-title").textContent = title;
+  $("sheet-body").innerHTML = html;
+  sheet.hidden = false;
+}
+function closeSheet() {
+  sheet.hidden = true;
+}
+sheet.addEventListener("click", (event) => {
+  if (event.target === sheet) closeSheet();
+});
+
+/* --- toast message --- */
+let toastTimer;
+function showToast(message, actionLabel, onAction) {
+  const el = $("toast");
+  el.innerHTML = `<span>${escapeHTML(message)}</span>`;
+  if (actionLabel) {
+    const button = document.createElement("button");
+    button.textContent = actionLabel;
+    button.addEventListener("click", () => {
+      onAction();
+      el.hidden = true;
+    });
+    el.appendChild(button);
+  }
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (el.hidden = true), 5000);
+}
+
+/* --- ☰ details --- */
+$("lb-more").addEventListener("click", () => {
+  const p = currentPhoto();
+  openSheet("Details", `
+    <dl class="details">
+      <dt>Title</dt><dd>${escapeHTML(p.title)}</dd>
+      <dt>Taken</dt><dd>${fullFormat.format(new Date(p.takenAt))}</dd>
+      <dt>Category</dt><dd>${p.category}</dd>
+      <dt>Image</dt><dd><a href="${p.src}" target="_blank" rel="noopener">Open original</a></dd>
+    </dl>`);
+});
+
+/* --- bottom bar buttons (event delegation again) --- */
+$("lb-bottom").addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-action]");
+  if (!btn) return;
+  const actions = { share: openShare, edit: openEdit, album: openAlbumSheet, bin: trashCurrent };
+  actions[btn.dataset.action]();
+});
+
+/* --- SHARE --- */
+function openShare() {
+  const photo = currentPhoto();
+  const url = encodeURIComponent(photo.src);   // makes the text safe to put inside a link
+  const text = encodeURIComponent(photo.title);
+
+  // Phones/some browsers have a built-in share menu; offer it as "More"
+  const nativeButton = navigator.share
+    ? `<button class="share-item" data-native><span>📲</span>More…</button>`
+    : "";
+
+  openSheet("Share to", `
+    <div class="share-grid">
+      <a class="share-item" href="https://wa.me/?text=${text}%20${url}" target="_blank" rel="noopener"><span>💬</span>WhatsApp</a>
+      <a class="share-item" href="https://t.me/share/url?url=${url}&text=${text}" target="_blank" rel="noopener"><span>✈️</span>Telegram</a>
+      <a class="share-item" href="https://twitter.com/intent/tweet?text=${text}&url=${url}" target="_blank" rel="noopener"><span>🐦</span>X</a>
+      <a class="share-item" href="mailto:?subject=${text}&body=${url}"><span>✉️</span>Email</a>
+      <button class="share-item" data-copy><span>🔗</span>Copy link</button>
+      ${nativeButton}
+    </div>`);
+}
+
+/* --- ADD TO ALBUM --- */
+function openAlbumSheet() {
+  const id = currentPhoto().id;
+  const rows = albums
+    .map((a) => `
+      <button class="sheet-row" data-album-id="${a.id}">
+        <span>${escapeHTML(a.name)}</span>
+        <span class="tick">${a.photoIds.includes(id) ? "✓" : ""}</span>
+      </button>`)
+    .join("");
+  openSheet("Add to album", rows || `<p class="empty-text">No albums yet. Create one in the Albums tab.</p>`);
+}
+
+// One listener for everything inside the sheet
+$("sheet-body").addEventListener("click", (event) => {
+  const photo = currentPhoto();
+
+  if (event.target.closest("[data-copy]")) {
+    navigator.clipboard
+      .writeText(photo.src)
+      .then(() => showToast("Link copied"))
+      .catch(() => showToast("Couldn't copy the link"));
+    closeSheet();
+    return;
+  }
+
+  if (event.target.closest("[data-native]")) {
+    navigator.share({ title: photo.title, url: photo.src }).catch(() => {});
+    return;
+  }
+
+  const row = event.target.closest("[data-album-id]");
+  if (row) {
+    const album = albums.find((a) => a.id === row.dataset.albumId);
+    const position = album.photoIds.indexOf(photo.id);
+    // Already inside? remove it. Not inside? add it.
+    position === -1 ? album.photoIds.push(photo.id) : album.photoIds.splice(position, 1);
+    saveAlbums();
+    renderAlbums();
+    row.querySelector(".tick").textContent = position === -1 ? "✓" : "";
+  }
+});
+
+/* --- BIN --- */
+// Re-draw every screen WITHOUT disturbing the lightbox's photo list
+function refreshScreens() {
+  const keep = visiblePhotos;
+  refreshPhotos();
+  renderGallery();
+  renderMonths();
+  renderAlbums();
+  visiblePhotos = keep;
+}
+
+function trashCurrent() {
+  const photo = currentPhoto();
+  trashed.add(photo.id);
+  saveJSON("trashed", [...trashed]);
+
+  const remaining = visiblePhotos.filter((p) => p.id !== photo.id);
+  refreshScreens();
+  visiblePhotos = remaining;
+
+  // Also remove the tile from an open month/album, and any day left empty
+  document.querySelectorAll(`.photo[data-id="${photo.id}"]`).forEach((el) => el.remove());
+  document.querySelectorAll(".day-group").forEach((g) => {
+    if (!g.querySelector(".photo")) g.remove();
+  });
+
+  if (remaining.length === 0) closeLightbox();
+  else showPhoto(Math.min(currentIndex, remaining.length - 1));
+
+  showToast("Moved to bin", "Undo", () => {
+    trashed.delete(photo.id);
+    saveJSON("trashed", [...trashed]);
+    refreshScreens();
+    if (lightbox.hidden) showView(lastTab);
+  });
+}
+
+/* --- EDIT --- */
+function openEdit() {
+  draft = { ...defaultEdit(), ...edits[currentPhoto().id] };   // copy, so Cancel changes nothing
+  $("lb-bottom").hidden = true;
+  editPanel.hidden = false;
+  editPanel.querySelector('[data-tab="filters"]').click();
+  renderEditControls();
+}
+
+function closeEdit() {
+  draft = null;
+  editPanel.hidden = true;
+  $("lb-bottom").hidden = false;
+}
+
+function cancelEdit() {
+  closeEdit();
+  lbImage.style.filter = filterFor(currentPhoto().id);   // back to the saved look
+}
+
+function renderEditControls() {
+  $("edit-filters").innerHTML = Object.keys(imagePresets)
+    .map((name) => `<button class="lb-filter ${name === draft.filter ? "active" : ""}" data-filter="${name}">${name}</button>`)
+    .join("");
+  editPanel.querySelectorAll("[data-adjust]").forEach((input) => (input.value = draft[input.dataset.adjust]));
+}
+
+const previewDraft = () => (lbImage.style.filter = buildFilter(draft));
+
+$("edit-filters").addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-filter]");
+  if (!btn) return;
+  draft.filter = btn.dataset.filter;
+  renderEditControls();
+  previewDraft();
+});
+
+// "input" fires continuously while dragging a slider, so the preview is live
+editPanel.querySelectorAll("[data-adjust]").forEach((slider) =>
+  slider.addEventListener("input", () => {
+    draft[slider.dataset.adjust] = Number(slider.value);
+    previewDraft();
+  })
+);
+
+editPanel.querySelectorAll(".edit-tab").forEach((tab) =>
+  tab.addEventListener("click", () => {
+    editPanel.querySelectorAll(".edit-tab").forEach((t) => t.classList.toggle("active", t === tab));
+    $("edit-filters").hidden = tab.dataset.tab !== "filters";
+    $("edit-adjust").hidden = tab.dataset.tab !== "adjust";
+  })
+);
+
+$("edit-reset").addEventListener("click", () => {
+  draft = defaultEdit();
+  renderEditControls();
+  previewDraft();
+});
+$("edit-cancel").addEventListener("click", cancelEdit);
+
+$("edit-save").addEventListener("click", () => {
+  const id = currentPhoto().id;
+  const unchanged = JSON.stringify(draft) === JSON.stringify(defaultEdit());
+  unchanged ? delete edits[id] : (edits[id] = draft);
+  saveJSON("edits", edits);
+
+  // Update the thumbnails everywhere on the page
+  document.querySelectorAll(`.photo[data-id="${id}"] img`).forEach((img) => (img.style.filter = filterFor(id)));
+  closeEdit();
+  lbImage.style.filter = filterFor(id);
+  showToast("Edit saved");
 });
 
 /* ============ 9. CREATE ALBUM MODAL ============ */
@@ -360,10 +648,12 @@ $("modal-save").addEventListener("click", () => {
 /* ============ 10. KEYBOARD ============ */
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    closeLightbox();
-    closeModal();
+    if (!sheet.hidden) return closeSheet();         // 1st: close the sheet
+    if (draft) return cancelEdit();                 // 2nd: cancel editing
+    if (!lightbox.hidden) return closeLightbox();   // 3rd: close the viewer
+    return closeModal();
   }
-  if (lightbox.hidden) return;
+  if (lightbox.hidden || draft || !sheet.hidden) return;
   if (event.key === "ArrowRight") showPhoto(currentIndex + 1);
   if (event.key === "ArrowLeft") showPhoto(currentIndex - 1);
 });

@@ -53,17 +53,61 @@
     </main>
 
     <!-- Lightbox -->
-    <div class="lightbox" id="lightbox" hidden>
-      <button class="lb-close" aria-label="Close">&times;</button>
-      <button class="lb-prev" aria-label="Previous photo">&#8249;</button>
-      <img class="lb-image" src="" alt="" />
-      <button class="lb-next" aria-label="Next photo">&#8250;</button>
-      <div class="lb-caption">
-        <strong id="lb-title"></strong>
-        <span id="lb-date"></span>
-        <div class="lb-filters" id="lb-filters"></div>
-      </div>
+<div class="lightbox" id="lightbox" hidden>
+
+  <div class="lb-top">
+    <button class="lb-icon" id="lb-close" aria-label="Close">&larr;</button>
+
+    <!-- Date button: clicking it jumps back to this photo in the gallery -->
+    <button class="lb-when" id="lb-when" title="Show in gallery">
+      <strong id="lb-date"></strong>
+      <small id="lb-time"></small>
+    </button>
+
+    <div class="lb-top-actions">
+      <button class="lb-icon" id="lb-fav" aria-label="Favourite">&#9734;</button>
+      <button class="lb-icon" id="lb-more" aria-label="Details">&#9776;</button>
     </div>
+  </div>
+
+  <button class="lb-nav lb-prev" aria-label="Previous photo">&#8249;</button>
+  <div class="lb-stage">
+    <img class="lb-image" src="" alt="" />
+  </div>
+  <button class="lb-nav lb-next" aria-label="Next photo">&#8250;</button>
+
+  <p class="lb-title" id="lb-title"></p>
+
+  <!-- Bottom action bar -->
+  <div class="lb-bottom" id="lb-bottom">
+    <button data-action="share"><span>📤</span>Share</button>
+    <button data-action="edit"><span>✏️</span>Edit</button>
+    <button data-action="album"><span>➕</span>Add to</button>
+    <button data-action="bin"><span>🗑️</span>Bin</button>
+  </div>
+
+  <!-- Edit panel (replaces the bottom bar while editing) -->
+  <div class="lb-edit" id="lb-edit" hidden>
+    <div class="edit-tabs">
+      <button class="edit-tab active" data-tab="filters">Filters</button>
+      <button class="edit-tab" data-tab="adjust">Adjust</button>
+    </div>
+
+    <div class="edit-panel" id="edit-filters"></div>
+
+    <div class="edit-panel" id="edit-adjust" hidden>
+      <label>Brightness <input type="range" min="50" max="150" value="100" data-adjust="brightness" /></label>
+      <label>Contrast   <input type="range" min="50" max="150" value="100" data-adjust="contrast" /></label>
+      <label>Saturation <input type="range" min="0"  max="200" value="100" data-adjust="saturate" /></label>
+    </div>
+
+    <div class="edit-actions">
+      <button id="edit-reset">Reset</button>
+      <button id="edit-cancel">Cancel</button>
+      <button id="edit-save" class="primary">Save</button>
+    </div>
+  </div>
+</div>
 
     <!-- Create album modal -->
     <div class="modal" id="album-modal" hidden>
@@ -83,5 +127,17 @@
         </div>
       </div>
     </div>
+<!-- Bottom sheet, reused for Share / Add to album / Details -->
+<div class="sheet-backdrop" id="sheet" hidden>
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h3 id="sheet-title"></h3>
+    <div id="sheet-body"></div>
+  </div>
+</div>
+
+<!-- Small message at the bottom ("Moved to bin · Undo") -->
+<div class="toast" id="toast" hidden></div>
+
   </body>
 </html>
