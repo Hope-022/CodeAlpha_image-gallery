@@ -12,7 +12,7 @@ A responsive image gallery inspired by Google Photos, built with plain HTML, CSS
 - **Mosaic gallery** with a varied-size grid layout
 - **Months view**: photos grouped by month; open a month to see them grouped by day
 - **Albums**: create your own albums with the **+** card (saved in the browser)
-- **Lightbox** with next/previous buttons, keyboard arrows, Esc to close and click-outside to close
+- **Lightbox** next/previous buttons” to “swipe or drag to navigate, keyboard arrows, Esc to close and click-outside to close
 - **Category filters** (Nature, Travel, Food, People)
 - **Image filters** in the lightbox (B&W, Sepia, Warm, Cool, Vivid)
 - **Hover effects and smooth transitions**
