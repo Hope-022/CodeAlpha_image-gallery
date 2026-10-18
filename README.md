@@ -2,6 +2,8 @@
 
 A responsive image gallery inspired by Google Photos, built with plain HTML, CSS and JavaScript (no frameworks).
 
+**Live demo**[https://hope-022.github.io/image-gallery/]
+
 
 ![Screenshot](image.png)
 ````

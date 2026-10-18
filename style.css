@@ -305,7 +305,7 @@ img { display: block; max-width: 100%; }
   /* Smaller lightbox controls that don't cover the photo */
   .album-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
   .modal-box { padding: 18px; }
-}
+
 
 /* Large screens: add a third density step */
 @media (min-width: 1100px) {
