@@ -2,7 +2,7 @@
 
 A responsive image gallery inspired by Google Photos, built with plain HTML, CSS and JavaScript (no frameworks).
 
-**Live demo**[https://hope-022.github.io/image-gallery/]
+**Live demo**[https://hope-022.github.io/CodeAlpha_image-gallery/]
 
 
 ![Screenshot](image.png)
@@ -44,7 +44,7 @@ README.md
 
 ## Run locally
 
-1. Clone the repo: `git clone https://github.com/Hope-022/photo-gallery.git`
+1. Clone the repo: `git clone https://github.com/Hope-022/CodeAlpha_image-gallery`
 2. Open `index.html` in a browser (or use the VS Code Live Server extension)
 
 ## Future improvements
